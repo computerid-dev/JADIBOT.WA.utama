@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masuk — JADI BOT WA</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="auth-shell">
+  <div class="auth-card">
+    <div class="brand">
+      <div class="brand-mark">JB</div>
+      JADI BOT WA
+    </div>
+    <h1>Masuk</h1>
+    <p class="sub">Masuk buat kelola koneksi bot WA lo.</p>
+
+    <div class="alert" id="alert"></div>
+
+    <form id="form-login">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" required placeholder="email@kamu.com">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" required placeholder="Password">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="btn-submit">Masuk</button>
+    </form>
+
+    <p class="auth-footer">Belum punya akun? <a href="/daftar" style="font-weight:700">Daftar di sini</a></p>
+  </div>
+</div>
+
+<script>
+const form = document.getElementById('form-login');
+const alertBox = document.getElementById('alert');
+const btn = document.getElementById('btn-submit');
+
+function showAlert(msg, type) {
+  alertBox.textContent = msg;
+  alertBox.className = 'alert show ' + type;
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  btn.disabled = true;
+  btn.textContent = 'Memproses...';
+
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showAlert(data.error || 'Gagal masuk', 'err');
+      btn.disabled = false;
+      btn.textContent = 'Masuk';
+      return;
+    }
+
+    localStorage.setItem('jbw_token', data.token);
+    localStorage.setItem('jbw_nama', data.nama);
+    window.location.href = '/dashboard';
+  } catch (err) {
+    showAlert('Gagal konek ke server, coba lagi', 'err');
+    btn.disabled = false;
+    btn.textContent = 'Masuk';
+  }
+});
+</script>
+
+</body>
+</html>
