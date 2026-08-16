@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/", "destination": "/public/index.html" },
+    { "source": "/daftar", "destination": "/public/register.html" },
+    { "source": "/masuk", "destination": "/public/login.html" },
+    { "source": "/dashboard", "destination": "/public/dashboard.html" }
+  ]
+}
