@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — JADI BOT WA</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="dash-shell">
+  <header class="dash-header">
+    <div class="wrap">
+      <div class="brand">
+        <div class="brand-mark">JB</div>
+        JADI BOT WA
+      </div>
+      <button class="btn btn-sm" id="btn-logout">Keluar</button>
+    </div>
+  </header>
+
+  <main class="dash-main">
+    <h1 id="greeting" style="font-size:26px">Halo!</h1>
+    <p style="color:var(--gray);margin-top:6px">Kelola koneksi bot WhatsApp lo di sini.</p>
+
+    <div class="card" style="margin-top:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <h3 style="margin:0">Status Bot</h3>
+        <span class="status-pill inactive" id="status-pill"><span class="status-dot"></span> <span id="status-text">Belum konek</span></span>
+      </div>
+      <p id="expire-text" style="margin-top:10px;font-size:13.5px;color:var(--gray)"></p>
+    </div>
+
+    <div class="card" style="margin-top:18px" id="connect-card">
+      <h3>1. Konek Nomor WhatsApp</h3>
+      <p style="margin-bottom:14px">Masukin nomor lo pake format 62xxxxxxxxxx.</p>
+      <div class="field">
+        <input type="text" id="nomor_wa" placeholder="62812xxxxxxxx">
+      </div>
+      <button class="btn btn-primary btn-block" id="btn-connect">Konek</button>
+      <div class="alert" id="connect-alert"></div>
+    </div>
+
+    <div class="card" style="margin-top:18px;display:none" id="pairing-card">
+      <h3>2. Tautkan di WhatsApp</h3>
+      <div class="pairing-code" id="pairing-code">NUGR-OHO2</div>
+      <ol class="instruksi-list" id="instruksi-list"></ol>
+    </div>
+
+    <div class="card" style="margin-top:18px" id="activate-card">
+      <h3>3. Aktifkan Bot (1 Minggu)</h3>
+      <p style="margin-bottom:14px">100% gratis. Kalau masa aktif habis, ulangi langkah ini buat aktif 7 hari lagi.</p>
+      <button class="btn btn-navy btn-block" id="btn-activate">Aktifkan</button>
+      <div class="alert" id="activate-alert"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const token = localStorage.getItem('jbw_token');
+if (!token) window.location.href = '/masuk';
+
+document.getElementById('greeting').textContent = 'Halo, ' + (localStorage.getItem('jbw_nama') || '') + '!';
+
+document.getElementById('btn-logout').addEventListener('click', () => {
+  localStorage.removeItem('jbw_token');
+  localStorage.removeItem('jbw_nama');
+  window.location.href = '/masuk';
+});
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+async function loadStatus() {
+  const res = await fetch('/api/status', { headers: { Authorization: 'Bearer ' + token } });
+  if (res.status === 401) { window.location.href = '/masuk'; return; }
+  const data = await res.json();
+
+  const pill = document.getElementById('status-pill');
+  const text = document.getElementById('status-text');
+  const expireText = document.getElementById('expire-text');
+
+  if (!data.session) {
+    pill.className = 'status-pill inactive';
+    text.textContent = 'Belum konek';
+    return;
+  }
+
+  pill.className = 'status-pill ' + data.session.status;
+  if (data.session.status === 'inactive') text.textContent = 'Nomor konek, belum aktif';
+  if (data.session.status === 'active') {
+    text.textContent = 'Aktif';
+    expireText.textContent = 'Aktif sampai ' + fmtDate(data.session.aktif_sampai);
+  }
+  if (data.session.status === 'expired') {
+    text.textContent = 'Kadaluarsa';
+    expireText.textContent = 'Masa aktif habis, aktifin lagi ya.';
+  }
+
+  document.getElementById('nomor_wa').value = data.session.nomor_wa;
+  document.getElementById('pairing-card').style.display = 'block';
+  document.getElementById('pairing-code').textContent = data.session.pairing_code;
+}
+
+document.getElementById('btn-connect').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-connect');
+  const alertBox = document.getElementById('connect-alert');
+  const nomor_wa = document.getElementById('nomor_wa').value.trim();
+
+  btn.disabled = true;
+  btn.textContent = 'Menghubungkan...';
+
+  try {
+    const res = await fetch('/api/connect-wa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ nomor_wa })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      alertBox.textContent = data.error;
+      alertBox.className = 'alert show err';
+      btn.disabled = false;
+      btn.textContent = 'Konek';
+      return;
+    }
+
+    document.getElementById('pairing-card').style.display = 'block';
+    document.getElementById('pairing-code').textContent = data.pairing_code;
+    const list = document.getElementById('instruksi-list');
+    list.innerHTML = '';
+    data.instruksi.forEach(step => {
+      const li = document.createElement('li');
+      li.textContent = step;
+      list.appendChild(li);
+    });
+
+    btn.disabled = false;
+    btn.textContent = 'Konek Ulang';
+  } catch (err) {
+    alertBox.textContent = 'Gagal konek ke server';
+    alertBox.className = 'alert show err';
+    btn.disabled = false;
+    btn.textContent = 'Konek';
+  }
+});
+
+document.getElementById('btn-activate').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-activate');
+  const alertBox = document.getElementById('activate-alert');
+
+  btn.disabled = true;
+  btn.textContent = 'Mengaktifkan...';
+
+  try {
+    const res = await fetch('/api/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      alertBox.textContent = data.error;
+      alertBox.className = 'alert show err';
+      btn.disabled = false;
+      btn.textContent = 'Aktifkan';
+      return;
+    }
+
+    alertBox.textContent = 'Bot aktif sampai ' + fmtDate(data.aktif_sampai);
+    alertBox.className = 'alert show ok';
+    btn.disabled = false;
+    btn.textContent = 'Aktifkan Lagi';
+    loadStatus();
+  } catch (err) {
+    alertBox.textContent = 'Gagal konek ke server';
+    alertBox.className = 'alert show err';
+    btn.disabled = false;
+    btn.textContent = 'Aktifkan';
+  }
+});
+
+loadStatus();
+</script>
+
+</body>
+</html>
